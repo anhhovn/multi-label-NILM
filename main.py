@@ -553,7 +553,7 @@ df_mains, metergroup = read_REDD(redd, start=None, end=None, sample_period=sampl
 print(df_mains.describe())
 figure = df_mains.plot().get_figure()
 '''
-redd = DataSet(r'D:\Users\hdmav\jupyter\multilabel-class\REDD\redd.h5')
+redd = DataSet('redd.h5')
 APPLIANCES_REDD_BUILDING_1 = ['electric oven', 'fridge', 'microwave', 'washer dryer', 'unknown', 'sockets', 'light']
 APPLIANCES_REDD_BUILDING_3 = ['electric furnace', 'CE appliance', 'microwave', 'washer dryer', 'unknown', 'sockets']
 building = 1
