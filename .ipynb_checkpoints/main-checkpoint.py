@@ -25,7 +25,7 @@ TIMING: bool = True
 TRACE_MEMORY: bool = True
 INFO: bool = True
 MB: int = 1024 * 1024
-classifier = MLkNN(ignore_first_neighbours=0, k=3, s=1.0)
+mlknn = MLkNN(ignore_first_neighbours=0, k=3, s=1.0)
 rakel = RakelD(MLPClassifier(hidden_layer_sizes=(100, 100, 100), learning_rate='adaptive',solver='adam'), labelset_size=5)
 
 def read_REDD(datasource, start, end, sample_period = 6, building = 1) -> Tuple[DataFrame, MeterGroup]:
@@ -286,7 +286,7 @@ def create_labels(array, threshold):
 
 
 '''
-SET UP 1 BUILDING (HOUSE 1)
+SET UP 1 BUILDING 
 '''
 def setup_one_building(appliances, datasource, building, start_date, end_date,
                            sample_period) -> (pd.DataFrame, MeterGroup, Dict, Dict):
@@ -347,18 +347,23 @@ def get_window(dt: TimeSeriesLength) -> int:
 
 
     
-def transform(series: np.ndarray, sample_period: int = 6, dimension: int = 6, delay_in_seconds: int = 30) -> list:
-    delay_items = int(delay_in_seconds / sample_period)
-    window_size = delay_items * dimension
-    num_of_segments = int(len(series)/ window_size)
-    delay_embeddings = []
-    for i in range(num_of_segments):
-        segment = series[i * window_size:(i+1) * window_size]
-        embedding = takens_embedding(segment, delay_items, dimension)
-        delay_embeddings.append(embedding)
-    return delay_embeddings
+# def transform(series: np.ndarray, sample_period: int = 6, dimension: int = 6, delay_in_seconds: int = 30) -> list:
+#     delay_items = int(delay_in_seconds / sample_period)
+#     window_size = delay_items * dimension
+#     num_of_segments = int(len(series)/ window_size)
+#     delay_embeddings = []
+#     for i in range(num_of_segments):
+#         segment = series[i * window_size:(i+1) * window_size]
+#         embedding = takens_embedding(segment, delay_items, dimension)
+#         delay_embeddings.append(embedding)
+#     return delay_embeddings
+
+
 
 def approximate(series_in_segments: np.ndarray, sample_period: int = 6, window: int = 1, should_fit = False, dimension: int = 6, delay_in_seconds: int = 30) -> np.ndarray:
+    """
+        The time series is given as segments. For each segment we extract the delay embeddings.
+        """
     delay_items = int(delay_in_seconds / sample_period)
     window_size = delay_items * dimension
     array_info(series_in_segments)
@@ -382,6 +387,14 @@ def get_multilabels(labels_df: DataFrame, appliances: List = None) -> DataFrame:
         return labels_df[appliances]
 
 def get_site_meter_data(df: DataFrame) -> np.ndarray:
+    """
+        Get the data of the site meter from the given DataFrame.
+        Args:
+            df (DataFrame): A DataFrame containing energy data with columns corresponding to different meters.
+
+        Returns:
+            The site meter data as an array (ndarray).
+        """
     debug('get_site_meter_data')
     debug(f'dataframe columns: {df.columns}')
     for col in df.columns:
@@ -396,6 +409,20 @@ def get_features(data_df: DataFrame) -> List:
     #data = transform(data)
     return data
 
+
+"""
+reduce_dimension
+        It uses the method approximate of the TimeSeriesTransformer in order to achieve dimensionality reduction.
+        Args:
+            data_in_batches (ndarray): The data of the time series separated in batches.
+            window (int): The size of the sub-segments of the given time series.
+                This is not supported by all algorithms.
+            target (ndarray): The labels that correspond to the given data in batches.
+            should_fit (bool): True if it is supported by the algorithm of the specified time series representation.
+        Returns:
+            The shortened time series as an array (ndarray).
+
+        """
 def reduce_dimensions(data_in_batches: np.ndarray, window: int, target: np.ndarray,should_fit: bool = False):
     squeezed_seq = approximate(data_in_batches, window, target, should_fit)
     return squeezed_seq
@@ -447,7 +474,7 @@ def preprocess(data_df, labels_df, appliances,should_fit: bool = True):
     target = get_multilabels(labels_df,appliances)
     target = np.array(target.values)
     debug(f"Target \n {target[:10]}")
-    window = get_window(TimeSeriesLength.WINDOW_1_DAY)
+    window = get_window(cur_window)
     rem = len(data) % window
     if rem>0:
         data = data[:-rem]
@@ -496,7 +523,7 @@ def train(appliances: list, train_df,train_labels_df, raw_data: bool = False):
         info("Training...")
         start_time = time.time()
         print(data[:10])
-        classifier.fit(data,target)
+        mlknn.fit(data,target)
         rakel.fit(data,target)
         fit_time = time.time() - start_time
         timing(f"fit time {fit_time}")
@@ -515,7 +542,7 @@ def test(appliances: list, test_df, test_labels_df, raw_data: bool = False):
     info("Testing...")
 
     start_time = time.time()
-    predictions = classifier.predict(data)
+    predictions = mlknn.predict(data)
     predictions_time = time.time() - start_time
     timing(f"predictions time {predictions_time}")
 
@@ -553,7 +580,7 @@ df_mains, metergroup = read_REDD(redd, start=None, end=None, sample_period=sampl
 print(df_mains.describe())
 figure = df_mains.plot().get_figure()
 '''
-redd = DataSet('redd.h5')
+redd = DataSet(r'D:\multi-nilm-master\datasources\Datasets\REDD\redd.h5')
 APPLIANCES_REDD_BUILDING_1 = ['electric oven', 'fridge', 'microwave', 'washer dryer', 'unknown', 'sockets', 'light']
 APPLIANCES_REDD_BUILDING_3 = ['electric furnace', 'CE appliance', 'microwave', 'washer dryer', 'unknown', 'sockets']
 building = 1
@@ -587,14 +614,15 @@ redd1_test_month_start = '5'
 redd1_test_end_date = "{}-25-{}".format(redd1_test_month_end, redd1_test_year_end)
 redd1_test_start_date = "{}-18-{}".format(redd1_test_month_start, redd1_test_year_start)
 
+cur_window = TimeSeriesLength.WINDOW_1_DAY
 
 def main():
-    
+
     train_df, train_labels_df = setup_train_data(redd, building, redd1_train_year_start, redd1_train_start_date, redd1_train_end_date, sample_period, APPLIANCES_REDD_BUILDING_1) 
-    test_df, test_labels_df = setup_test_data(redd, building, redd3_test_year_end, redd3_test_start_date, redd3_test_end_date, sample_period, APPLIANCES_REDD_BUILDING_1) 
-    print(train_df[:10])
-    train(appliances, train_df, train_labels_df)
-    test(appliances,test_df,test_labels_df)
+    info('/---------------------------------/')
+    test_df, test_labels_df = setup_test_data(redd, building, redd1_test_year_end, redd1_test_start_date, redd1_test_end_date, sample_period, APPLIANCES_REDD_BUILDING_1) 
+    train(APPLIANCES_REDD_BUILDING_1, train_df, train_labels_df)
+    test(APPLIANCES_REDD_BUILDING_1,test_df,test_labels_df)
 
     
     
