@@ -286,7 +286,7 @@ def create_labels(array, threshold):
 
 
 '''
-SET UP 1 BUILDING (HOUSE 1)
+SET UP 1 BUILDING 
 '''
 def setup_one_building(appliances, datasource, building, start_date, end_date,
                            sample_period) -> (pd.DataFrame, MeterGroup, Dict, Dict):
@@ -347,18 +347,23 @@ def get_window(dt: TimeSeriesLength) -> int:
 
 
     
-def transform(series: np.ndarray, sample_period: int = 6, dimension: int = 6, delay_in_seconds: int = 30) -> list:
-    delay_items = int(delay_in_seconds / sample_period)
-    window_size = delay_items * dimension
-    num_of_segments = int(len(series)/ window_size)
-    delay_embeddings = []
-    for i in range(num_of_segments):
-        segment = series[i * window_size:(i+1) * window_size]
-        embedding = takens_embedding(segment, delay_items, dimension)
-        delay_embeddings.append(embedding)
-    return delay_embeddings
+# def transform(series: np.ndarray, sample_period: int = 6, dimension: int = 6, delay_in_seconds: int = 30) -> list:
+#     delay_items = int(delay_in_seconds / sample_period)
+#     window_size = delay_items * dimension
+#     num_of_segments = int(len(series)/ window_size)
+#     delay_embeddings = []
+#     for i in range(num_of_segments):
+#         segment = series[i * window_size:(i+1) * window_size]
+#         embedding = takens_embedding(segment, delay_items, dimension)
+#         delay_embeddings.append(embedding)
+#     return delay_embeddings
+
+
 
 def approximate(series_in_segments: np.ndarray, sample_period: int = 6, window: int = 1, should_fit = False, dimension: int = 6, delay_in_seconds: int = 30) -> np.ndarray:
+    """
+        The time series is given as segments. For each segment we extract the delay embeddings.
+        """
     delay_items = int(delay_in_seconds / sample_period)
     window_size = delay_items * dimension
     array_info(series_in_segments)
@@ -382,6 +387,14 @@ def get_multilabels(labels_df: DataFrame, appliances: List = None) -> DataFrame:
         return labels_df[appliances]
 
 def get_site_meter_data(df: DataFrame) -> np.ndarray:
+    """
+        Get the data of the site meter from the given DataFrame.
+        Args:
+            df (DataFrame): A DataFrame containing energy data with columns corresponding to different meters.
+
+        Returns:
+            The site meter data as an array (ndarray).
+        """
     debug('get_site_meter_data')
     debug(f'dataframe columns: {df.columns}')
     for col in df.columns:
@@ -397,6 +410,18 @@ def get_features(data_df: DataFrame) -> List:
     return data
 
 def reduce_dimensions(data_in_batches: np.ndarray, window: int, target: np.ndarray,should_fit: bool = False):
+     """
+        It uses the method approximate of the TimeSeriesTransformer in order to achieve dimensionality reduction.
+        Args:
+            data_in_batches (ndarray): The data of the time series separated in batches.
+            window (int): The size of the sub-segments of the given time series.
+                This is not supported by all algorithms.
+            target (ndarray): The labels that correspond to the given data in batches.
+            should_fit (bool): True if it is supported by the algorithm of the specified time series representation.
+        Returns:
+            The shortened time series as an array (ndarray).
+
+        """
     squeezed_seq = approximate(data_in_batches, window, target, should_fit)
     return squeezed_seq
 
