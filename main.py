@@ -580,7 +580,7 @@ df_mains, metergroup = read_REDD(redd, start=None, end=None, sample_period=sampl
 print(df_mains.describe())
 figure = df_mains.plot().get_figure()
 '''
-redd = DataSet(r'D:\multi-nilm-master\datasources\Datasets\REDD\redd.h5')
+redd = DataSet('redd.h5')
 APPLIANCES_REDD_BUILDING_1 = ['electric oven', 'fridge', 'microwave', 'washer dryer', 'unknown', 'sockets', 'light']
 APPLIANCES_REDD_BUILDING_3 = ['electric furnace', 'CE appliance', 'microwave', 'washer dryer', 'unknown', 'sockets']
 building = 1
@@ -619,7 +619,6 @@ cur_window = TimeSeriesLength.WINDOW_1_DAY
 def main():
 
     train_df, train_labels_df = setup_train_data(redd, building, redd1_train_year_start, redd1_train_start_date, redd1_train_end_date, sample_period, APPLIANCES_REDD_BUILDING_1) 
-    info('/---------------------------------/')
     test_df, test_labels_df = setup_test_data(redd, building, redd1_test_year_end, redd1_test_start_date, redd1_test_end_date, sample_period, APPLIANCES_REDD_BUILDING_1) 
     train(APPLIANCES_REDD_BUILDING_1, train_df, train_labels_df)
     test(APPLIANCES_REDD_BUILDING_1,test_df,test_labels_df)
